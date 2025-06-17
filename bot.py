@@ -73,11 +73,15 @@ def adjust_to_color_bucket(color):
     if 0.72 <= h <= 0.9 and s >= 0.3 and v >= 0.5:
         return (239, 25, 251)
 
-    # Blue / Cyan
-    if 0.50 <= h <= 0.58 and s >= 0.3 and v >= 0.7:
-        return (98, 242, 255)
-
+    # Blue (tighter range to exclude greenish-cyan tones)
+    if 0.56 <= h <= 0.68 and s >= 0.3 and v >= 0.5:
+        return (10, 126, 242)
+    # Teal/Cyan
+    if 0.48 <= h <= 0.54 and s >= 0.3 and v >= 0.6:
+        return (10, 126, 242)
     return (round(r * 255), round(g * 255), round(b * 255))
+
+
 
 def avg_color(pixels):
     # Calculate the average for each channel
