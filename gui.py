@@ -1,22 +1,39 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QTextEdit
-from PyQt5.QtCore import QTimer
+from PyQt5.QtCore import pyqtSignal, QTimer
 from PyQt5.QtGui import QColor, QPixmap
+from PyQt5.QtWidgets import QApplication, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QTextEdit
 import numpy as np
 import pyautogui
 from bot import gather_game_grid, grid_width, grid_height, grid_columns, grid_rows, left, top, width, height, find_best_move, click_at, grid_to_screen,reset_mouse_position,move_to, is_in_rankup_menu, is_in_badges, is_in_unlock_menu
 import time
+class ClickableLabel(QLabel):
+    clicked = pyqtSignal(int, int)
+    def __init__(self, row, col, parent=None):
+        super().__init__(parent)
+        self.row = row
+        self.col = col
+    def mousePressEvent(self, event):
+        self.clicked.emit(self.row, self.col)
+        super().mousePressEvent(event)
+
 class GameGridWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.grid_layout = QGridLayout()
         self.setLayout(self.grid_layout)
-        self.labels = [[QLabel() for _ in range(grid_columns)] for _ in range(grid_rows)]
+        self.labels = [[ClickableLabel(r, c) for c in range(grid_columns)] for r in range(grid_rows)]
         for r in range(grid_rows):
             for c in range(grid_columns):
                 label = self.labels[r][c]
                 label.setFixedSize(18, 18)  # Smaller for compact UI
                 self.grid_layout.addWidget(label, r, c)
+                label.clicked.connect(self.handle_label_click)
+
+    def handle_label_click(self, row, col):
+        # Copy coordinates to clipboard (customize as needed)
+        clipboard = QApplication.clipboard()
+        color_rgb = self.labels[row][col].pixmap().toImage().pixelColor(0, 0).getRgb()
+        clipboard.setText(f"Color: {color_rgb[0]}, {color_rgb[1]}, {color_rgb[2]}")
 
     def update_grid(self, game_grid):
         for r in range(grid_rows):
@@ -218,27 +235,44 @@ class MainWindow(QWidget):
                 self.score_label.setText(f'Total Score: {self.score_total}')  # Update label
             else:
                 self.log('panicking: no move found, breathing')
-                for _ in range(7):
-                    time.sleep(1)
-                    QApplication.processEvents()
-                if self.grid_change is not None:
-                    max_change_index = np.unravel_index(np.argmax(self.grid_change, axis=None), self.grid_change.shape)
-                    r, c = max_change_index
-                    self.log(f'panicking: most changed ({r},{c})')
-                    x, y = grid_to_screen(r, c)
+                self._panicking_wait_count = 0
+                self._panicking_timer = QTimer(self)
+                self._panicking_timer.setInterval(1000)  # 1 second
+                self._panicking_timer.timeout.connect(self._panicking_wait_step)
+                self._panicking_timer.start()
+                return  # Exit to let the timer handle the rest
+
+    def _panicking_wait_step(self):
+        self._panicking_wait_count += 1
+        QApplication.processEvents()
+        if self._panicking_wait_count >= 7:
+            self._panicking_timer.stop()
+            # Continue with the rest of the panicking logic
+            if self.grid_change is not None:
+                max_change_index = np.unravel_index(np.argmax(self.grid_change, axis=None), self.grid_change.shape)
+                r, c = max_change_index
+                self.log(f'panicking: most changed ({r},{c})')
+                x, y = grid_to_screen(r, c)
+                try:
                     click_at(x=x, y=y)
                     time.sleep(0.3)
                     direction = np.random.choice(['up', 'down', 'left', 'right'])
                     if direction == 'up':
-                        x,y = grid_to_screen(r-1, c)
+                        x, y = grid_to_screen(r-1, c)
                     elif direction == 'down':
-                        x,y = grid_to_screen(r+1, c)    
+                        x, y = grid_to_screen(r+1, c)
                     elif direction == 'left':
-                        x,y = grid_to_screen(r, c-1)
+                        x, y = grid_to_screen(r, c-1)
                     elif direction == 'right':
-                        x,y = grid_to_screen(r, c+1)
+                        x, y = grid_to_screen(r, c+1)
                     self.log(f'panicking: end {direction} ({r},{c})')
                     click_at(x=x, y=y)
+                except Exception as e:
+                    self.log(f"Panicking stopped: {e}")
+                    self.playing = False
+                    self.play_button.setChecked(False)
+                    self.play_button.setText('Play')
+                    self.log('paused')
 
 def run_gui():
     app = QApplication(sys.argv)

@@ -43,35 +43,37 @@ grid_width = 64
 grid_height = 64
 grid_columns = 8
 grid_rows = 8
-
 import colorsys
 
 def adjust_to_color_bucket(color):
     r, g, b = [x / 255.0 for x in color]
     h, s, v = colorsys.rgb_to_hsv(r, g, b)
 
-    # White: very low saturation, very high value
+    # White
     if s < 0.15 and v > 0.85:
-        return (255, 255, 255)  # White bucket
+        return (255, 255, 255)
 
-    # Group as yellow if hue is in yellow range, even if saturation is low
+    # Yellow
     if 0.15 <= h <= 0.18 and v >= 0.8:
-        return (255, 240, 0)  # Unified yellow bucket
+        return (255, 240, 0)
 
-    # Orange: hue between red and yellow, high saturation, medium to high value
+    # Orange
     if 0.05 <= h <= 0.12 and s >= 0.5 and v >= 0.5:
-        return (255, 140, 0)  # Orange bucket
+        return (255, 140, 0)
 
-    # Group pink (light pink) and red separately
-    # Pink: hue near 0 or 1, high value, low to medium saturation
+    # Pink
     if (0.9 <= h <= 1.0 or 0.0 <= h <= 0.05) and s < 0.5 and v >= 0.8:
-        return (255, 182, 193)  # Pink bucket
-    # Red: hue near 0 or 1, high saturation, medium to high value
+        return (255, 182, 193)
+
+    # Red
     if (0.9 <= h <= 1.0 or 0.0 <= h <= 0.05) and s >= 0.5 and v >= 0.5:
-        return (255, 0, 0)  # Red bucket
+        return (255, 0, 0)
+
+    # Purple (roughly hue 0.75 to 0.9, high saturation)
+    if 0.72 <= h <= 0.9 and s >= 0.3 and v >= 0.5:
+        return (239, 25, 251)
 
     return (round(r * 255), round(g * 255), round(b * 255))
-
 
 def avg_color(pixels):
     # Calculate the average for each channel
