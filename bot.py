@@ -69,9 +69,13 @@ def adjust_to_color_bucket(color):
     if (0.9 <= h <= 1.0 or 0.0 <= h <= 0.05) and s >= 0.5 and v >= 0.5:
         return (255, 0, 0)
 
-    # Purple (roughly hue 0.75 to 0.9, high saturation)
+    # Purple
     if 0.72 <= h <= 0.9 and s >= 0.3 and v >= 0.5:
         return (239, 25, 251)
+
+    # Blue / Cyan
+    if 0.50 <= h <= 0.58 and s >= 0.3 and v >= 0.7:
+        return (98, 242, 255)
 
     return (round(r * 255), round(g * 255), round(b * 255))
 
@@ -318,13 +322,4 @@ def reset_mouse_position():
     """Reset the last mouse position to None."""
     global last_mouse_position
     last_mouse_position = (None, None)
-if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print(f"An error occurred: {e}")
-    finally:
-        print("Bot stopped.")
 
-
-# %%
