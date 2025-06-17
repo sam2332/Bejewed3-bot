@@ -101,6 +101,7 @@ class MainWindow(QWidget):
         self.log_messages = []
         self.log_widget = QTextEdit()
         self.log_widget.setReadOnly(True)
+        self.last_screenshot_save = None  # Track last save time
         self.log_widget.setFixedWidth(220)
         self.log_widget.setStyleSheet('background-color: #181a1b; color: #f0f0f0; font-size: 9pt;')
         # Horizontal layout
@@ -141,6 +142,7 @@ class MainWindow(QWidget):
         self.grid_heatmap = None
         self.grid_history = []
         self.update_grid()
+        self.recent_moves = set()  # Track recent moves to avoid duplicates
 
     def log(self, message):
         self.log_messages.append(message)
@@ -178,7 +180,10 @@ class MainWindow(QWidget):
         self.screenshot = screenshot
 
     def update(self):
-        self.update_grid()
+        try:
+            self.update_grid()
+        except Exception as e:
+            print("ooop")
         if self.playing:
             try:
                 self.play_move()
@@ -206,7 +211,7 @@ class MainWindow(QWidget):
             delta_threshold = 2  # Small value to ignore noise
             change_mask = self.grid_change > delta_threshold
             change_ratio = np.sum(change_mask) / (grid_rows * grid_columns)
-            if change_ratio > 0.6:
+            if change_ratio > 0.3:
                 self.log('waiting (board animating)')
                 time.sleep(0.5)
                 return
@@ -220,7 +225,7 @@ class MainWindow(QWidget):
             self.log('menu: unlock')
             click_at(x=404, y=383)
         else:
-            best_move, best_score = find_best_move(self.game_grid)
+            best_move, best_score = find_best_move(self.game_grid,self.recent_moves)
             if best_move:
                 (r1, c1), (r2, c2) = best_move
                 self.log(f'best move ({r1},{c1}) <-> ({r2},{c2})')
@@ -233,6 +238,8 @@ class MainWindow(QWidget):
                 move_to(10,10)
                 self.score_total += best_score  # Update running total
                 self.score_label.setText(f'Total Score: {self.score_total}')  # Update label
+                self.recent_moves.add(((r1, c1), (r2, c2)))  # Track recent moves
+                self.recent_moves = set(list(self.recent_moves)[-10:])  # Keep only last 10 moves
             else:
                 self.log('panicking: no move found, breathing')
                 self._panicking_wait_count = 0

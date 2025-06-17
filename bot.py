@@ -45,75 +45,122 @@ grid_columns = 8
 grid_rows = 8
 import colorsys
 
-def adjust_to_color_bucket(color):
+import colorsys
+
+def adjust_to_color_bucket(color, shift_step=0.01, max_shift=0.07):
     r, g, b = [x / 255.0 for x in color]
-    h, s, v = colorsys.rgb_to_hsv(r, g, b)
+    h_original, s, v = colorsys.rgb_to_hsv(r, g, b)
 
-    # White
-    if s < 0.15 and v > 0.85:
-        return (255, 255, 255)
+    shifts = [0] + [i * shift_step for i in range(1, int(max_shift / shift_step) + 1)]
+    for shift in shifts:
+        for adjusted_h in [(h_original + shift) % 1.0, (h_original - shift) % 1.0]:
+            # White
+            if s < 0.2 and v > 0.8:
+                return (255, 255, 255)
+            # Light Gray
+            if s < 0.2 and v > 0.5:
+                return (255,255,255)
+            # Gray
+            if s < 0.2 and v > 0.3:
+                return (255,255,255)
 
-    # Yellow
-    if 0.15 <= h <= 0.18 and v >= 0.8:
-        return (255, 240, 0)
+            # Yellow
+            if 0.12 <= adjusted_h <= 0.18 and v >= 0.7:
+                return (255, 240, 0)
 
-    # Orange
-    if 0.05 <= h <= 0.12 and s >= 0.5 and v >= 0.5:
-        return (255, 140, 0)
+            # Orange
+            if 0.03 <= adjusted_h <= 0.12 and s >= 0.4 and v >= 0.4:
+                return (255, 140, 0)
 
-    # Pink
-    if (0.9 <= h <= 1.0 or 0.0 <= h <= 0.05) and s < 0.5 and v >= 0.8:
-        return (255, 182, 193)
+            # Pink
+            if (0.9 <= adjusted_h <= 1.0 or 0.0 <= adjusted_h <= 0.06) and s < 0.6 and v >= 0.7:
+                return (255, 182, 193)
 
-    # Red
-    if (0.9 <= h <= 1.0 or 0.0 <= h <= 0.05) and s >= 0.5 and v >= 0.5:
-        return (255, 0, 0)
+            # Red
+            if (0.94 <= adjusted_h <= 1.0 or 0.0 <= adjusted_h <= 0.05) and s >= 0.4 and v >= 0.4:
+                return (255, 0, 0)
 
-    # Purple
-    if 0.72 <= h <= 0.9 and s >= 0.3 and v >= 0.5:
-        return (239, 25, 251)
+            # Purple
+            if 0.68 <= adjusted_h <= 0.93 and s >= 0.25 and v >= 0.4:
+                return (239, 25, 251)
 
-    # Blue (tighter range to exclude greenish-cyan tones)
-    if 0.56 <= h <= 0.68 and s >= 0.3 and v >= 0.5:
-        return (10, 126, 242)
-    # Teal/Cyan
-    if 0.48 <= h <= 0.54 and s >= 0.3 and v >= 0.6:
-        return (10, 126, 242)
+            # Blue
+            if 0.52 <= adjusted_h <= 0.68 and s >= 0.25 and v >= 0.4:
+                return (10, 126, 242)
+
+            # Teal/Cyan
+            if 0.46 <= adjusted_h <= 0.54 and s >= 0.25 and v >= 0.5:
+                return (10, 126, 242)
+
+    # Fallback: return original unbucketed color
     return (round(r * 255), round(g * 255), round(b * 255))
 
 
+from PIL import Image
 
 def avg_color(pixels):
-    # Calculate the average for each channel
-    arr = np.array(pixels)
-    return tuple(int(arr[:, i].mean()) for i in range(3))
+    r = sum(p[0] for p in pixels) / len(pixels)
+    g = sum(p[1] for p in pixels) / len(pixels)
+    b = sum(p[2] for p in pixels) / len(pixels)
+    return (int(r), int(g), int(b))
+
+import numpy as np
+from PIL import Image
 
 def gather_game_grid(screenshot, grid_width, grid_height, grid_columns, grid_rows):
-    game = list()    
-    # add a dot at the center of each grid cell
+    y_offset = 30
+    y_offset = 5
+    screenshot_np = np.array(screenshot)
+    height, width = screenshot_np.shape[:2]
+
+    # Prepare debug image
+    test_np = np.ones((grid_rows * grid_height + y_offset, grid_columns * grid_width, 3), dtype=np.uint8) * 255
+    #paste the screenshot into the debug image
+    test_np[y_offset:y_offset + height, :width] = screenshot_np
+
+    game = []
+
     for row in range(grid_rows):
-        _rowArray = list()
+        row_array = []
         for col in range(grid_columns):
             x_center = col * grid_width + grid_width // 2
             y_center = row * grid_height + grid_height // 2
-            # Collect a 3x3 grid of pixels around the center
-            pixels = []
-            for dx in range(-2, 3):
-                for dy in range(-2, 3):
-                    x = x_center + dx
-                    y = y_center + dy
-                    if 0 <= x < screenshot.width and 0 <= y < screenshot.height:
-                        pixels.append(screenshot.getpixel((x, y)))
-            if pixels:
-                color = adjust_to_color_bucket(avg_color(pixels))
-            else:
-                color = (0, 0, 0)
-            _rowArray.append(color)
-        game.append(_rowArray)
-            
+            y_center += y_offset
+
+            # Region to sample
+            sample_half = 5
+            x1 = max(x_center - sample_half, 0)
+            x2 = min(x_center + sample_half, width)
+            y1 = max(y_center - sample_half, 0)
+            y2 = min(y_center + sample_half, height)
+
+            region = screenshot_np[y1:y2, x1:x2]
+            if region.size == 0:
+                row_array.append((0, 0, 0))
+                continue
+
+            avg = tuple(region.mean(axis=(0, 1)).astype(int))
+            bucketed = adjust_to_color_bucket(avg)
+            row_array.append(bucketed)
+
+            # Draw black border + color box on debug image
+            box_size = 14
+            bx1 = max(x_center - box_size // 2, 0)
+            bx2 = min(x_center + box_size // 2, width)
+            by1 = max(y_center + y_offset - box_size // 2, 0)
+            by2 = min(y_center + y_offset + box_size // 2, height + y_offset)
+
+            # Draw black square
+            test_np[by1:by2, bx1:bx2] = 0
+            # Fill inside with color
+            inner_pad = 2
+            test_np[by1+inner_pad:by2-inner_pad, bx1+inner_pad:bx2-inner_pad] = avg
+
+        game.append(row_array)
+
+    Image.fromarray(test_np).save("test_image.png")
     return game
-game_grid = gather_game_grid(screenshot, grid_width, grid_height, grid_columns, grid_rows)
-game_grid
+
 
 
 # %%
@@ -168,7 +215,9 @@ def count_match(grid, r, c):
             rr += dr
     return max(count_h if count_h >= 3 else 0, count_v if count_v >= 3 else 0)
 
-def find_best_move(grid):
+def find_best_move(grid, previous_moves = None):
+    if previous_moves is None:
+        previous_moves = set()
     rows, cols = len(grid), len(grid[0])
     best_score = 0
     best_move = None
@@ -178,7 +227,7 @@ def find_best_move(grid):
             if c < cols - 1 and grid[r][c] != grid[r][c+1]:  # Only swap if different
                 grid[r][c], grid[r][c+1] = grid[r][c+1], grid[r][c]
                 score = count_match(grid, r, c) + count_match(grid, r, c+1)
-                if score > best_score:
+                if score > best_score and ((r, c), (r, c+1)) not in previous_moves:
                     best_score = score
                     best_move = ((r, c), (r, c+1))
                 grid[r][c], grid[r][c+1] = grid[r][c+1], grid[r][c]
@@ -186,7 +235,7 @@ def find_best_move(grid):
             if r < rows - 1 and grid[r][c] != grid[r+1][c]:  # Only swap if different
                 grid[r][c], grid[r+1][c] = grid[r+1][c], grid[r][c]
                 score = count_match(grid, r, c) + count_match(grid, r+1, c)
-                if score > best_score:
+                if score > best_score and ((r, c), (r+1, c)) not in previous_moves:
                     best_score = score
                     best_move = ((r, c), (r+1, c))
                 grid[r][c], grid[r+1][c] = grid[r+1][c], grid[r][c]
