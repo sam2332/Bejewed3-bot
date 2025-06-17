@@ -54,6 +54,18 @@ def adjust_to_color_bucket(color):
     if 0.15 <= h <= 0.18 and v >= 0.8:
         return (255, 240, 0)  # Unified yellow bucket
 
+    # Orange: hue between red and yellow, high saturation, medium to high value
+    if 0.05 <= h <= 0.12 and s >= 0.5 and v >= 0.5:
+        return (255, 140, 0)  # Orange bucket
+
+    # Group pink (light pink) and red separately
+    # Pink: hue near 0 or 1, high value, low to medium saturation
+    if (0.9 <= h <= 1.0 or 0.0 <= h <= 0.05) and s < 0.5 and v >= 0.8:
+        return (255, 182, 193)  # Pink bucket
+    # Red: hue near 0 or 1, high saturation, medium to high value
+    if (0.9 <= h <= 1.0 or 0.0 <= h <= 0.05) and s >= 0.5 and v >= 0.5:
+        return (255, 0, 0)  # Red bucket
+
     return (round(r * 255), round(g * 255), round(b * 255))
 
 
@@ -149,7 +161,7 @@ def find_best_move(grid):
     for r in range(rows-1, -1, -1):
         for c in range(cols-1, -1, -1):
             # Try horizontal swap
-            if c < cols - 1:
+            if c < cols - 1 and grid[r][c] != grid[r][c+1]:  # Only swap if different
                 grid[r][c], grid[r][c+1] = grid[r][c+1], grid[r][c]
                 score = count_match(grid, r, c) + count_match(grid, r, c+1)
                 if score > best_score:
@@ -157,7 +169,7 @@ def find_best_move(grid):
                     best_move = ((r, c), (r, c+1))
                 grid[r][c], grid[r][c+1] = grid[r][c+1], grid[r][c]
             # Try vertical swap
-            if r < rows - 1:
+            if r < rows - 1 and grid[r][c] != grid[r+1][c]:  # Only swap if different
                 grid[r][c], grid[r+1][c] = grid[r+1][c], grid[r][c]
                 score = count_match(grid, r, c) + count_match(grid, r+1, c)
                 if score > best_score:
