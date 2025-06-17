@@ -50,6 +50,10 @@ def adjust_to_color_bucket(color):
     r, g, b = [x / 255.0 for x in color]
     h, s, v = colorsys.rgb_to_hsv(r, g, b)
 
+    # White: very low saturation, very high value
+    if s < 0.15 and v > 0.85:
+        return (255, 255, 255)  # White bucket
+
     # Group as yellow if hue is in yellow range, even if saturation is low
     if 0.15 <= h <= 0.18 and v >= 0.8:
         return (255, 240, 0)  # Unified yellow bucket

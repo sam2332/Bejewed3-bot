@@ -46,11 +46,10 @@ class GridChangeWidget(QWidget):
                     self.labels[r][c].clear()
             return
         # Amplify low deltas using square root scaling
-        scaled_change = np.sqrt(grid_change)
-        max_change = np.max(scaled_change) if np.max(scaled_change) > 0 else 1
+        max_change = np.max(grid_change) if np.max(grid_change) > 0 else 1
         for r in range(grid_rows):
             for c in range(grid_columns):
-                value = scaled_change[r][c]
+                value = grid_change[r][c]
                 intensity = int(255 * value / max_change)
                 qcolor = QColor(intensity, 0, 0)
                 pixmap = QPixmap(20, 20)
@@ -116,7 +115,7 @@ class MainWindow(QWidget):
         self.setLayout(layout)
         self.timer = QTimer()
         self.timer.timeout.connect(self.update)
-        self.timer.start(500)
+        self.timer.start(100)
         self.game_grid = None
         self.previous_grid = None
         self.screenshot = None
@@ -138,7 +137,7 @@ class MainWindow(QWidget):
         new_grid = gather_game_grid(screenshot, grid_width, grid_height, grid_columns, grid_rows)
         # Update history
         self.grid_history.append(np.array(new_grid))
-        if len(self.grid_history) > 5:
+        if len(self.grid_history) > 3:
             self.grid_history.pop(0)
         # Compute heatmap if we have at least 2 frames
         if len(self.grid_history) > 1:
