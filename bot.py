@@ -107,9 +107,10 @@ def avg_color(pixels):
 import numpy as np
 from PIL import Image
 
-def gather_game_grid(screenshot, grid_width, grid_height, grid_columns, grid_rows):
-    y_offset = 30
+def gather_game_grid(screenshot, grid_width, grid_height, grid_columns, grid_rows, has_progress_bar=False):
     y_offset = 5
+    if has_progress_bar:
+        y_offset = 30
     screenshot_np = np.array(screenshot)
     height, width = screenshot_np.shape[:2]
 

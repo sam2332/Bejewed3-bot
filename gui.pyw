@@ -1,7 +1,7 @@
 import sys
 from PyQt5.QtCore import pyqtSignal, QTimer
 from PyQt5.QtGui import QColor, QPixmap
-from PyQt5.QtWidgets import QApplication, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QTextEdit
+from PyQt5.QtWidgets import QApplication, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QTextEdit, QCheckBox
 import numpy as np
 import pyautogui
 from bot import gather_game_grid, grid_width, grid_height, grid_columns, grid_rows, left, top, width, height, find_best_move, click_at, grid_to_screen,reset_mouse_position,move_to, is_in_rankup_menu, is_in_badges, is_in_unlock_menu
@@ -82,6 +82,10 @@ class MainWindow(QWidget):
             QLabel { color: #f0f0f0; font-size: 10pt; }
             QPushButton { background-color: #333; color: #f0f0f0; border: 1px solid #444; border-radius: 4px; padding: 4px 8px; }
             QPushButton:checked { background-color: #555; }
+            QCheckBox { color: #f0f0f0; font-size: 10pt; }
+            QCheckBox::indicator { width: 13px; height: 13px; }
+            QCheckBox::indicator:unchecked { background-color: #333; border: 1px solid #444; }
+            QCheckBox::indicator:checked { background-color: #555; border: 1px solid #666; }
         ''')
         self.setFixedHeight(250)
         self.grid_widget = GameGridWidget()
@@ -93,10 +97,17 @@ class MainWindow(QWidget):
         self.play_button = QPushButton('Play')
         self.play_button.setFixedHeight(24)
         self.playing = False
-        self.play_button.setCheckable(True)
+        self.play_button.setCheckable(True) 
         self.play_button.clicked.connect(self.toggle_play)
         self.score_label = QLabel('Score: 0')
         self.score_label.setFixedHeight(20)
+        
+        # Progress bar checkbox
+        self.has_progress_bar_checkbox = QCheckBox('Has Progress Bar')
+        self.has_progress_bar_checkbox.setFixedHeight(20)
+        self.has_progress_bar = False  # Initialize the attribute
+        self.has_progress_bar_checkbox.stateChanged.connect(self.toggle_progress_bar)
+        
         # Log widget
         self.log_messages = []
         self.log_widget = QTextEdit()
@@ -124,6 +135,7 @@ class MainWindow(QWidget):
         controls_col.addWidget(self.refresh_button)
         controls_col.addWidget(self.play_button)
         controls_col.addWidget(self.score_label)
+        controls_col.addWidget(self.has_progress_bar_checkbox)
         controls_col.addStretch()
         layout.addLayout(grid_col)
         layout.addLayout(change_col)
@@ -153,7 +165,7 @@ class MainWindow(QWidget):
 
     def update_grid(self):
         screenshot = pyautogui.screenshot(region=(left, top, width, height))
-        new_grid = gather_game_grid(screenshot, grid_width, grid_height, grid_columns, grid_rows)
+        new_grid = gather_game_grid(screenshot, grid_width, grid_height, grid_columns, grid_rows, self.has_progress_bar)
         # Update history
         self.grid_history.append(np.array(new_grid))
         if len(self.grid_history) > 3:
@@ -204,6 +216,11 @@ class MainWindow(QWidget):
             self.log('starting')
         else:
             self.log('paused')
+
+    def toggle_progress_bar(self, state):
+        self.has_progress_bar = state == 2  # Qt.Checked = 2
+        status = "enabled" if self.has_progress_bar else "disabled"
+        self.log(f'Progress bar detection: {status}')
 
     def play_move(self):
         # Wait if most cells are changing (board is animating)
